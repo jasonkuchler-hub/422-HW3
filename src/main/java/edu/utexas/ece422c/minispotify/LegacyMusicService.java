@@ -76,13 +76,18 @@ public class LegacyMusicService implements MusicService {
     }
     @Override public Set<Song> getFavorites(String username){
         return Set.copyOf(user(username).getFavorites());
-    }    @Override public void playSong(String username,String songId){
-        Song s=getSong(songId); if(s==null) throw new IllegalArgumentException("Unknown song"); user(username).getHistory().add(s); playCounts.merge(songId,1,Integer::sum);
     }
-    @Override public List<Song> getRecentlyPlayed(String username,int n){
-        List<Song> h=user(username).getHistory(), out=new ArrayList<>();
-        for(int i=h.size()-1;i>=0 && out.size()<n;i--) out.add(h.get(i));
-        return out;
+    @Override public void playSong(String username,String songId){
+        Song s=getSong(songId);
+        if(s==null) throw new IllegalArgumentException("Unknown song");
+        user(username).getHistory().put(songId, s);
+        user(username).getAllTimePlayed().add(s);
+        playCounts.merge(songId,1,Integer::sum);
+    }
+    @Override public List<Song> getRecentlyPlayed(String username, int n){
+        List<Song> ordered = new ArrayList<>(user(username).getHistory().values());
+        Collections.reverse(ordered);
+        return ordered.subList(0, Math.min(n, ordered.size()));
     }
     @Override public List<Song> getTopSongs(int n){
         List<Song> copy=new ArrayList<>(catalog.values());
