@@ -1,0 +1,9 @@
+id,title,artist,genre,durationSeconds
+s1,Midnight Run,The Signals,Rock,224
+s2,Hash Map Heart,The Collections,Indie,198
+s3,Deque Dreams,Runtime,Electronic,245
+s4,Static Noise,The Signals,Rock,201
+s5,Blue Iterator,Runtime,Jazz,278
+s6,Constant Time,The Collections,Indie,187
+s7,Mutable State,Alias,Pop,212
+s8,Hidden Test,Alias,Pop,205
