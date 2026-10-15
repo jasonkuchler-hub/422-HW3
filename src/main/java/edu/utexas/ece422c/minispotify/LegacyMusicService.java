@@ -77,8 +77,16 @@ public class LegacyMusicService implements MusicService {
         if(!users.containsKey(collaborator)) throw new IllegalArgumentException("Collaborator must be a real user");
         playlist(owner, name).addCollaborator(collaborator);
     }
-    @Override public void followPlaylist(String username,String owner,String name){ throw new UnsupportedOperationException("Not implemented"); }
-    @Override public List<Playlist> getFollowedPlaylists(String username){ throw new UnsupportedOperationException("Not implemented"); }
+    @Override public void followPlaylist(String username, String owner, String name){
+        Playlist p = playlist(owner, name);
+        if (username.equals(owner)) {
+            throw new IllegalArgumentException("Cannot follow your own playlist");
+        }
+        user(username).getFollowedPlaylists().add(p);
+    }
+    @Override public List<Playlist> getFollowedPlaylists(String username){
+        return new ArrayList<>(user(username).getFollowedPlaylists() );
+    }
     @Override public void addFavorite(String username, String songId){
         Song s = getSong(songId);
         if (s == null) {throw new IllegalArgumentException("Unknown song");}

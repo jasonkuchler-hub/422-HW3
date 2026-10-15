@@ -26,4 +26,7 @@ public class User {
     public Set<Song> getFavorites(){return favorites;}
     public Map<String, Song> getHistory(){return history;}
     public Map<String, Playlist> getPlaylists(){return playlists;}
+
+    private final Set<Playlist> followedPlaylists = new HashSet<>();
+    public Set<Playlist> getFollowedPlaylists(){ return followedPlaylists; }
 }
