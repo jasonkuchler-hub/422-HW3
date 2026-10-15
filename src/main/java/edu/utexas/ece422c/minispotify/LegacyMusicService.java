@@ -23,35 +23,34 @@ public class LegacyMusicService implements MusicService {
     }
     private User user(String username){
         if(!users.containsKey(username)){throw new IllegalArgumentException("Unknown user: " + username);}
-        else
-            return users.get(username);
+        return users.get(username);
     }
     private Playlist playlist(String owner, String name){
-        for(Playlist p: user(owner).getPlaylists()) if(p.getName().equals(name)) return p;
-        throw new IllegalArgumentException("Unknown playlist: " + name);
+        Playlist p = user(owner).getPlaylists().get(name);
+        if (p == null) {throw new IllegalArgumentException("Unknown playlist: " + name);}
+        return p;
     }
     @Override public List<Song> searchByArtist(String artist){
         List<Song> matches = artistIndex.get(artist.toLowerCase());
         if(matches == null){ return new ArrayList<>();}
-        else
-            return List.copyOf(matches);
+        return List.copyOf(matches);
     }
     @Override public List<Song> searchByGenre(String genre){
         List<Song> matches = genreIndex.get(genre.toLowerCase());
         if(matches == null){ return new ArrayList<>();}
-        else
-            return List.copyOf(matches);
+        return List.copyOf(matches);
     }
     @Override public List<Song> searchByTitle(String q){
         List<Song> out=new ArrayList<>(); String x=q.toLowerCase(); for(Song s:catalog.values()) if(s.getTitle().toLowerCase().contains(x)) out.add(s); return out;
     }
     @Override public void createUser(String username){
         if(users.containsKey(username)){throw new IllegalArgumentException("Duplicate user");}
-        else
-            users.put(username,new User(username));
+        users.put(username,new User(username));
     }
     @Override public void createPlaylist(String username,String name){
-        User u=user(username); for(Playlist p:u.getPlaylists()) if(p.getName().equals(name)) throw new IllegalArgumentException("Duplicate playlist"); u.getPlaylists().add(new Playlist(name,username));
+        User u = user(username);
+        if(u.getPlaylists().containsKey(name)){throw new IllegalArgumentException("Duplicate playlist");}
+        u.getPlaylists().put(name, new Playlist(name, username));
     }
     @Override public void addToPlaylist(String actingUser,String owner,String name,String songId){
         if(!actingUser.equals(owner)) throw new UnsupportedOperationException("Collaborators not implemented");
