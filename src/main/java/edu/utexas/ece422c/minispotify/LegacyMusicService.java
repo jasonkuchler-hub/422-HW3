@@ -52,16 +52,31 @@ public class LegacyMusicService implements MusicService {
         if(u.getPlaylists().containsKey(name)){throw new IllegalArgumentException("Duplicate playlist");}
         u.getPlaylists().put(name, new Playlist(name, username));
     }
-    @Override public void addToPlaylist(String actingUser,String owner,String name,String songId){
-        if(!actingUser.equals(owner)) throw new UnsupportedOperationException("Collaborators not implemented");
-        Song s=getSong(songId); if(s==null) throw new IllegalArgumentException("Unknown song"); playlist(owner,name).addSong(s);
+    @Override public void addToPlaylist(String actingUser, String owner, String name, String songId){
+        Playlist p = playlist(owner, name);
+        if (!actingUser.equals(owner) && !p.isCollaborator(actingUser)) {
+            throw new IllegalArgumentException("actingUser must be a collaborator or owner");
+        }
+        Song s = getSong(songId);
+        if (s == null) throw new IllegalArgumentException("Unknown song");
+        p.addSong(s);
     }
     @Override public void removeFromPlaylist(String actingUser,String owner,String name,String songId){
-        if(!actingUser.equals(owner)) throw new UnsupportedOperationException("Collaborators not implemented");
-        Song s=getSong(songId); if(s==null || !playlist(owner,name).removeFirst(s)) throw new IllegalArgumentException("Song not in playlist");
+        Playlist p = playlist(owner, name);
+        if (!actingUser.equals(owner) && !p.isCollaborator(actingUser)) {
+            throw new IllegalArgumentException("actingUser must be a collaborator or owner");
+        }
+        Song s = getSong(songId);
+        if (s == null) throw new IllegalArgumentException("Unknown song");
+        if(!p.removeFirst(s)) throw new IllegalArgumentException("No song was removed");
     }
     @Override public List<Song> getPlaylist(String owner,String name){ return playlist(owner,name).getSongs(); }
-    @Override public void addCollaborator(String actingUser,String owner,String name,String collaborator){ throw new UnsupportedOperationException("Not implemented"); }
+    @Override public void addCollaborator(String actingUser, String owner, String name, String collaborator){
+        if(!actingUser.equals(owner)) throw new IllegalArgumentException("actingUser must be Owner");
+        if(collaborator.equals(owner)) throw new IllegalArgumentException("Owner cannot be a collaborator");
+        if(!users.containsKey(collaborator)) throw new IllegalArgumentException("Collaborator must be a real user");
+        playlist(owner, name).addCollaborator(collaborator);
+    }
     @Override public void followPlaylist(String username,String owner,String name){ throw new UnsupportedOperationException("Not implemented"); }
     @Override public List<Playlist> getFollowedPlaylists(String username){ throw new UnsupportedOperationException("Not implemented"); }
     @Override public void addFavorite(String username, String songId){

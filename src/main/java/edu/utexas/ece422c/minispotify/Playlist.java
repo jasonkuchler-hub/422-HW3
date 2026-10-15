@@ -1,7 +1,6 @@
 package edu.utexas.ece422c.minispotify;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class Playlist {
     private final String name;
@@ -12,4 +11,12 @@ public class Playlist {
     void addSong(Song song){ songs.add(song); }
     boolean removeFirst(Song song){ return songs.remove(song); }
     public List<Song> getSongs(){ return List.copyOf(songs); }
+
+    private final Set<String> collaborators = new HashSet<>();
+    void addCollaborator(String username){
+        collaborators.add(username);
+    }
+    boolean isCollaborator(String username){
+        return collaborators.contains(username);
+    }
 }
