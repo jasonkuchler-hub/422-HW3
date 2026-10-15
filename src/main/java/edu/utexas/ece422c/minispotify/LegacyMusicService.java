@@ -7,7 +7,7 @@ import java.util.*;
  */
 public class LegacyMusicService implements MusicService {
     private final Map<String, Song> catalog = new LinkedHashMap<>();
-    private final List<User> users = new ArrayList<>();
+    private final Map<String, User> users = new HashMap<>();
     private final Map<String,Integer> playCounts = new HashMap<>();
     private final Map<String, List<Song>> artistIndex = new HashMap<>();
     private final Map<String, List<Song>> genreIndex = new HashMap<>();
@@ -22,8 +22,9 @@ public class LegacyMusicService implements MusicService {
         return catalog.get(songId);
     }
     private User user(String username){
-        for(User u: users) if(u.getUsername().equals(username)) return u;
-        throw new IllegalArgumentException("Unknown user: " + username);
+        if(!users.containsKey(username)){throw new IllegalArgumentException("Unknown user: " + username);}
+        else
+            return users.get(username);
     }
     private Playlist playlist(String owner, String name){
         for(Playlist p: user(owner).getPlaylists()) if(p.getName().equals(name)) return p;
@@ -31,13 +32,13 @@ public class LegacyMusicService implements MusicService {
     }
     @Override public List<Song> searchByArtist(String artist){
         List<Song> matches = artistIndex.get(artist.toLowerCase());
-        if(matches == null){ return new ArrayList<Song>();}
+        if(matches == null){ return new ArrayList<>();}
         else
             return List.copyOf(matches);
     }
     @Override public List<Song> searchByGenre(String genre){
         List<Song> matches = genreIndex.get(genre.toLowerCase());
-        if(matches == null){ return new ArrayList<Song>();}
+        if(matches == null){ return new ArrayList<>();}
         else
             return List.copyOf(matches);
     }
@@ -45,7 +46,9 @@ public class LegacyMusicService implements MusicService {
         List<Song> out=new ArrayList<>(); String x=q.toLowerCase(); for(Song s:catalog.values()) if(s.getTitle().toLowerCase().contains(x)) out.add(s); return out;
     }
     @Override public void createUser(String username){
-        for(User u:users) if(u.getUsername().equals(username)) throw new IllegalArgumentException("Duplicate user"); users.add(new User(username));
+        if(users.containsKey(username)){throw new IllegalArgumentException("Duplicate user");}
+        else
+            users.put(username,new User(username));
     }
     @Override public void createPlaylist(String username,String name){
         User u=user(username); for(Playlist p:u.getPlaylists()) if(p.getName().equals(name)) throw new IllegalArgumentException("Duplicate playlist"); u.getPlaylists().add(new Playlist(name,username));
