@@ -64,10 +64,19 @@ public class LegacyMusicService implements MusicService {
     @Override public void addCollaborator(String actingUser,String owner,String name,String collaborator){ throw new UnsupportedOperationException("Not implemented"); }
     @Override public void followPlaylist(String username,String owner,String name){ throw new UnsupportedOperationException("Not implemented"); }
     @Override public List<Playlist> getFollowedPlaylists(String username){ throw new UnsupportedOperationException("Not implemented"); }
-    @Override public void addFavorite(String username,String songId){ Song s=getSong(songId); if(s==null) throw new IllegalArgumentException("Unknown song"); user(username).getFavorites().add(s); }
-    @Override public void removeFavorite(String username,String songId){ Song s=getSong(songId); if(s!=null) user(username).getFavorites().remove(s); }
-    @Override public Set<Song> getFavorites(String username){ return new HashSet<>(user(username).getFavorites()); }
-    @Override public void playSong(String username,String songId){
+    @Override public void addFavorite(String username, String songId){
+        Song s = getSong(songId);
+        if (s == null) {throw new IllegalArgumentException("Unknown song");}
+        user(username).getFavorites().add(s);
+    }
+    @Override public void removeFavorite(String username,String songId){
+        Song s = getSong(songId);
+        if(s == null){throw new IllegalArgumentException("Unknown song");}
+        user(username).getFavorites().remove(s);
+    }
+    @Override public Set<Song> getFavorites(String username){
+        return Set.copyOf(user(username).getFavorites());
+    }    @Override public void playSong(String username,String songId){
         Song s=getSong(songId); if(s==null) throw new IllegalArgumentException("Unknown song"); user(username).getHistory().add(s); playCounts.merge(songId,1,Integer::sum);
     }
     @Override public List<Song> getRecentlyPlayed(String username,int n){
