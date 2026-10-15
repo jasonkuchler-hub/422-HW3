@@ -1,6 +1,6 @@
 package edu.utexas.ece422c.minispotify;
 
-import java.util.List;
+import java.util.*;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -87,5 +87,149 @@ class MusicServicePublicTest {
 
         // getRecentlyPlayed must also respect a smaller n
         assertEquals(3, s.getRecentlyPlayed("u", 3).size());
+    }
+    // --- Duplicate usernames ---
+    @Test void duplicateUsernameRejected(){
+        var s = service();
+        assertThrows(IllegalArgumentException.class, () -> s.createUser("u"));
+    }
+
+    // --- Collaborator permissions ---
+    @Test void collaboratorCanModifyButStrangerCannot(){
+        var s = service();
+        s.createUser("owner"); s.createUser("collab"); s.createUser("stranger");
+        s.createPlaylist("owner", "P");
+        s.addCollaborator("owner", "owner", "P", "collab");
+        s.addToPlaylist("collab", "owner", "P", "1");
+        assertEquals(1, s.getPlaylist("owner", "P").size());
+        assertThrows(IllegalArgumentException.class, () -> s.addToPlaylist("stranger", "owner", "P", "2"));
+    }
+
+    @Test void onlyOwnerCanAddCollaborator(){
+        var s = service();
+        s.createUser("owner"); s.createUser("collab"); s.createUser("other");
+        s.createPlaylist("owner", "P");
+        assertThrows(IllegalArgumentException.class, () -> s.addCollaborator("other", "owner", "P", "collab"));
+    }
+
+    @Test void ownerCannotBeAddedAsOwnCollaborator(){
+        var s = service();
+        s.createUser("owner");
+        s.createPlaylist("owner", "P");
+        assertThrows(IllegalArgumentException.class, () -> s.addCollaborator("owner", "owner", "P", "owner"));
+    }
+
+    @Test void addingSameCollaboratorTwiceIsHarmless(){
+        var s = service();
+        s.createUser("owner"); s.createUser("collab");
+        s.createPlaylist("owner", "P");
+        s.addCollaborator("owner", "owner", "P", "collab");
+        s.addCollaborator("owner", "owner", "P", "collab"); // should not throw
+        s.addToPlaylist("collab", "owner", "P", "1");
+        assertEquals(1, s.getPlaylist("owner", "P").size());
+    }
+
+    // --- Duplicate favorites / follows ---
+    @Test void duplicateFavoriteHasNoExtraEffect(){
+        var s = service();
+        s.addFavorite("u", "1");
+        s.addFavorite("u", "1");
+        assertEquals(1, s.getFavorites("u").size());
+    }
+
+    @Test void removingNonFavoriteSongIsNoOp(){
+        var s = service();
+        assertDoesNotThrow(() -> s.removeFavorite("u", "1"));
+        assertEquals(0, s.getFavorites("u").size());
+    }
+
+    @Test void duplicateFollowDoesNotDuplicate(){
+        var s = service();
+        s.createUser("owner"); s.createUser("follower");
+        s.createPlaylist("owner", "P");
+        s.followPlaylist("follower", "owner", "P");
+        s.followPlaylist("follower", "owner", "P");
+        assertEquals(1, s.getFollowedPlaylists("follower").size());
+    }
+
+    @Test void userCannotFollowOwnPlaylist(){
+        var s = service();
+        s.createUser("owner");
+        s.createPlaylist("owner", "P");
+        assertThrows(IllegalArgumentException.class, () -> s.followPlaylist("owner", "owner", "P"));
+    }
+
+    // --- Tie-breaking (the case-sensitivity bug you found) ---
+    @Test void topSongsTieBreakIsCaseInsensitiveByTitle(){
+        var s = MusicServices.create();
+        s.addSong(new Song("b1", "Banana", "Artist", "Genre", 100));
+        s.addSong(new Song("a1", "apple", "Artist", "Genre", 100));
+        // Both have 0 plays, so title is the tiebreaker.
+        // A naive case-sensitive compare would put "Banana" first (capital B < lowercase a).
+        List<Song> top = s.getTopSongs(2);
+        assertEquals("a1", top.get(0).getId());
+        assertEquals("b1", top.get(1).getId());
+    }
+
+    // --- Recommendation exclusions, including songs evicted from bounded history ---
+    @Test void recommendationsExcludeSongsDroppedFromHistory(){
+        var s = MusicServices.create();
+        s.createUser("u");
+        s.addSong(new Song("fav1", "Fav Song", "Artist", "Rock", 100));
+        s.addSong(new Song("old1", "Old Rock Song", "Artist", "Rock", 100));
+        for (int i = 0; i < 60; i++) {
+            s.addSong(new Song("filler" + i, "Filler " + i, "Artist", "Pop", 100));
+        }
+        s.addFavorite("u", "fav1");
+        s.playSong("u", "old1");
+        for (int i = 0; i < 60; i++) {
+            s.playSong("u", "filler" + i); // evicts old1 from the 50-entry bounded history
+        }
+        assertFalse(s.getRecentlyPlayed("u", 50).stream().anyMatch(song -> song.getId().equals("old1")));
+        List<Song> recs = s.getRecommendations("u", 10);
+        assertFalse(recs.stream().anyMatch(song -> song.getId().equals("old1")));
+    }
+
+    // --- Mutation attempts on returned collections ---
+    @Test void returnedPlaylistIsImmutable(){
+        var s = service();
+        s.createPlaylist("u", "P");
+        s.addToPlaylist("u", "u", "P", "1");
+        List<Song> playlist = s.getPlaylist("u", "P");
+        assertThrows(UnsupportedOperationException.class, () -> playlist.add(s.getSong("2")));
+    }
+
+    @Test void returnedFavoritesAreImmutable(){
+        var s = service();
+        s.addFavorite("u", "1");
+        Set<Song> favs = s.getFavorites("u");
+        assertThrows(UnsupportedOperationException.class, () -> favs.add(s.getSong("2")));
+    }
+
+    @Test void mutatingReturnedFollowedPlaylistsDoesNotAffectInternalState(){
+        var s = service();
+        s.createUser("owner");
+        s.createPlaylist("owner", "P");
+        s.followPlaylist("u", "owner", "P");
+        List<Playlist> followed = s.getFollowedPlaylists("u");
+        followed.clear(); // this is a copy, so it won't throw, but shouldn't affect real state
+        assertEquals(1, s.getFollowedPlaylists("u").size());
+    }
+
+    // --- Large-catalog correctness (not just timing) ---
+    @Test void largeCatalogReturnsCorrectData() throws Exception {
+        MusicService s = MusicServices.create();
+        try (var in = getClass().getResourceAsStream("/minispotify_catalog_100000.csv")) {
+            for (Song song : CatalogLoader.load(in)) {
+                s.addSong(song);
+            }
+        }
+        Song known = s.getSong("S000001");
+        assertNotNull(known);
+        assertEquals("Quiet Harbor 000001", known.getTitle());
+
+        List<Song> byArtist = s.searchByArtist("Quiet Voyagers 1489");
+        assertEquals(73, byArtist.size());
+        assertTrue(byArtist.stream().allMatch(song -> song.getArtist().equals("Quiet Voyagers 1489")));
     }
 }
