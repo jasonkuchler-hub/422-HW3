@@ -6,17 +6,20 @@ import java.util.*;
  * It is intentionally small-scale and incomplete relative to Assignment #3.
  */
 public class LegacyMusicService implements MusicService {
-    private final List<Song> catalog = new ArrayList<>();
+    private final Map<String, Song> catalog = new LinkedHashMap<>();
     private final List<User> users = new ArrayList<>();
     private final Map<String,Integer> playCounts = new HashMap<>();
+    private final Map<String, List<Song>> artistIndex = new HashMap<>();
+    private final Map<String, List<Song>> genreIndex = new HashMap<>();
 
     @Override public void addSong(Song song){
         if(getSong(song.getId()) != null) throw new IllegalArgumentException("Duplicate song id");
-        catalog.add(song);
+        catalog.put(song.getId(),song);
+        artistIndex.computeIfAbsent(song.getArtist().toLowerCase(), k -> new ArrayList<>()).add(song);
+        genreIndex.computeIfAbsent(song.getGenre().toLowerCase(), k -> new ArrayList<>()).add(song);
     }
     @Override public Song getSong(String songId){
-        for(Song s: catalog) if(s.getId().equals(songId)) return s;
-        return null;
+        return catalog.get(songId);
     }
     private User user(String username){
         for(User u: users) if(u.getUsername().equals(username)) return u;
@@ -27,13 +30,19 @@ public class LegacyMusicService implements MusicService {
         throw new IllegalArgumentException("Unknown playlist: " + name);
     }
     @Override public List<Song> searchByArtist(String artist){
-        List<Song> out=new ArrayList<>(); for(Song s:catalog) if(s.getArtist().equalsIgnoreCase(artist)) out.add(s); return out;
+        List<Song> matches = artistIndex.get(artist.toLowerCase());
+        if(matches == null){ return new ArrayList<Song>();}
+        else
+            return List.copyOf(matches);
     }
     @Override public List<Song> searchByGenre(String genre){
-        List<Song> out=new ArrayList<>(); for(Song s:catalog) if(s.getGenre().equalsIgnoreCase(genre)) out.add(s); return out;
+        List<Song> matches = genreIndex.get(genre.toLowerCase());
+        if(matches == null){ return new ArrayList<Song>();}
+        else
+            return List.copyOf(matches);
     }
     @Override public List<Song> searchByTitle(String q){
-        List<Song> out=new ArrayList<>(); String x=q.toLowerCase(); for(Song s:catalog) if(s.getTitle().toLowerCase().contains(x)) out.add(s); return out;
+        List<Song> out=new ArrayList<>(); String x=q.toLowerCase(); for(Song s:catalog.values()) if(s.getTitle().toLowerCase().contains(x)) out.add(s); return out;
     }
     @Override public void createUser(String username){
         for(User u:users) if(u.getUsername().equals(username)) throw new IllegalArgumentException("Duplicate user"); users.add(new User(username));
@@ -65,7 +74,7 @@ public class LegacyMusicService implements MusicService {
         return out;
     }
     @Override public List<Song> getTopSongs(int n){
-        List<Song> copy=new ArrayList<>(catalog);
+        List<Song> copy=new ArrayList<>(catalog.values());
         copy.sort(Comparator.<Song>comparingInt(s -> playCounts.getOrDefault(s.getId(),0)).reversed().thenComparing(Song::getTitle).thenComparing(Song::getId));
         return new ArrayList<>(copy.subList(0,Math.min(n,copy.size())));
     }

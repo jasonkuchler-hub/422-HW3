@@ -1,5 +1,6 @@
 package edu.utexas.ece422c.minispotify;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -18,4 +19,33 @@ class MusicServicePublicTest {
     }
     @Test void duplicateSongIdsRejected(){ var s=service(); assertThrows(IllegalArgumentException.class,()->s.addSong(new Song("1","Other","X","Y",1))); }
     @Test void topSongsUsesPlayCounts(){ var s=service(); s.playSong("u","2"); s.playSong("u","2"); s.playSong("u","1"); assertEquals("2",s.getTopSongs(1).get(0).getId()); }
+    @Test void loadLargeCatalogIsFast() throws Exception {
+        MusicService s = MusicServices.create();
+        List<Song> songs;
+        long start = System.currentTimeMillis();
+        try (var in = getClass().getResourceAsStream("/minispotify_catalog_100000.csv")) {
+            songs = CatalogLoader.load(in);
+            for (Song song : songs) {
+                s.addSong(song);
+            }
+        }
+        long elapsed = System.currentTimeMillis() - start;
+        System.out.println("Loaded 100,000 songs in " + elapsed + " ms");
+
+        start = System.currentTimeMillis();
+        for (int i = 0; i < 100_000; i++) {
+            String id = songs.get(i % songs.size()).getId();
+            s.getSong(id);
+        }
+        elapsed = System.currentTimeMillis() - start;
+        System.out.println("100,000 getSong calls in " + elapsed + " ms");
+
+        start = System.currentTimeMillis();
+        for (int i = 0; i < 10_000; i++) {
+            String artist = songs.get(i % songs.size()).getArtist();
+            s.searchByArtist(artist);
+        }
+        elapsed = System.currentTimeMillis() - start;
+        System.out.println("10,000 searchByArtist calls in " + elapsed + " ms");
+    }
 }
