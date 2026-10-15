@@ -48,4 +48,44 @@ class MusicServicePublicTest {
         elapsed = System.currentTimeMillis() - start;
         System.out.println("10,000 searchByArtist calls in " + elapsed + " ms");
     }
+    @Test void historyBoundedAndMostRecentUnique(){
+        MusicService s = MusicServices.create();
+        s.createUser("u");
+        for (int i = 0; i <= 50; i++) {
+            s.addSong(new Song("h" + i, "Song " + i, "Artist", "Genre", 100));
+        }
+
+        // 49 plays: no eviction yet, size should be exactly 49
+        for (int i = 0; i <= 48; i++) {
+            s.playSong("u", "h" + i);
+        }
+        assertEquals(49, s.getRecentlyPlayed("u", 50).size());
+
+        // 50th play: still no eviction, size caps exactly at 50, oldest (h0) still present
+        s.playSong("u", "h49");
+        List<Song> after50 = s.getRecentlyPlayed("u", 50);
+        assertEquals(50, after50.size());
+        assertEquals("h49", after50.get(0).getId());
+        assertTrue(after50.stream().anyMatch(song -> song.getId().equals("h0")));
+
+        // 51st play (a new, 51st distinct song): oldest entry (h0) must now be evicted
+        s.playSong("u", "h50");
+        List<Song> after51 = s.getRecentlyPlayed("u", 50);
+        assertEquals(50, after51.size());
+        assertEquals("h50", after51.get(0).getId());
+        assertFalse(after51.stream().anyMatch(song -> song.getId().equals("h0")));
+
+        // Replaying an already-present song (h1) should move it to most-recent
+        // position, WITHOUT creating a duplicate or growing the size
+        s.playSong("u", "h1");
+        List<Song> afterReplay = s.getRecentlyPlayed("u", 50);
+        assertEquals(50, afterReplay.size());
+        assertEquals("h1", afterReplay.get(0).getId());
+        assertEquals("h50", afterReplay.get(1).getId());
+        long countOfH1 = afterReplay.stream().filter(song -> song.getId().equals("h1")).count();
+        assertEquals(1, countOfH1);
+
+        // getRecentlyPlayed must also respect a smaller n
+        assertEquals(3, s.getRecentlyPlayed("u", 3).size());
+    }
 }
